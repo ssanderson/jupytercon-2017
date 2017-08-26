@@ -1,0 +1,554 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+    <title>reveal.js</title>
+
+    <link rel="stylesheet" href="css/reveal.css">
+    <link rel="stylesheet" href="css/theme/night.css">
+    <link rel="stylesheet" href="css/custom.css">
+
+    <!-- Theme used for syntax highlighting of code -->
+    <link rel="stylesheet" href="lib/css/zenburn.css">
+
+    <!-- Printing and PDF exports -->
+    <script>
+     var link = document.createElement( 'link' );
+     link.rel = 'stylesheet';
+     link.type = 'text/css';
+     link.href = window.location.search.match( /print-pdf/gi ) ? 'css/print/pdf.css' : 'css/print/paper.css';
+     document.getElementsByTagName( 'head' )[0].appendChild( link );
+    </script>
+  </head>
+  <body>
+    <div class="reveal">
+      <div class="slides">
+	<section id="title-page" align="left">
+          <h3>Hosting Notebooks for 100,000 Users</h3>
+          <div style="margin-left:5%">
+            <div>Github: <a href="https://github.com/ssanderson">ssanderson</a></div>
+            <div>Twitter: <a href="http://twitter.com/scottbsanderson">@scottbsanderson</a></div>
+            <div>Work: <a href="https://www.quantopian.com">Quantopian</a></div>
+            <div>Slides: <a href="https://github.com/ssanderson/jupytercon-2017">https://github.com/ssanderson/jupytercon-2017</a></div>
+          </div>
+        </section>
+        <section id="outline" align="left">
+          <h2 id="outline-title" align="left">Outline</h2>
+          <ul id="outline-elements"  style="line-height:100%">
+            <div class="fragment fade-up">
+              <h3>Demo</h3>
+            </div>
+            <div class="fragment fade-up">
+              <h3>Goals and Challenges</h3>
+            </div>
+            <div class="fragment fade-up">
+              <h3>Extension Case Studies</h3>
+              <ul>
+                <h4 class="fragment fade-up">User Identity</h4>
+                <h4 class="fragment fade-up">Notebook Storage</h4>
+                <h4 class="fragment fade-up">Multiple Hubs</h4>
+                <h4 class="fragment fade-up">Sharing Notebooks</h4>
+              </ul>
+            </div>
+          </ul>
+        </section>
+        <section id="demo" align="center">
+          <section id="actual-demo">
+            <h2>Demo</h2>
+          </section>
+        </section>
+        <section id="why-jupyter" align="left">
+          <section id="why-jupyter-reasons">
+            <h3>Why Jupyter?</h3>
+            <ul>
+              <li class="fragment">The hard part of writing a trading algorithm isn't writing the algorithm.</li>
+              <li class="fragment">
+                It's researching the <b>ideas</b> behind the algorithm.
+              </li>
+              <ul>
+                <li class="fragment">Exploring and Visualizing Data.</li>
+                <li class="fragment">Testing Hypotheses</li>
+                <li class="fragment">Analyzing Results</li>
+              </ul>
+            </ul>
+          </section>
+        </section>
+        <section id="goals" align="left">
+          <h2>Project Goals</h2>
+          <ul>
+            <li class="fragment">Integrate Jupyter UI into an existing web application.
+            </li>
+            <li class="fragment">Support 100,000+ users with minimal downtime.
+            </li>
+            <li class="fragment">Allow users to share notebooks with the Quantopian Community.
+            </li>
+          </ul>
+        </section>
+        <section id="challenges" align="left">
+          <h3>Challenges</h3>
+          <ul>
+            <li class="fragment">Scale
+              <ul>
+                <li>Financial analyses often RAM and CPU intensive.</li>
+                <li>Must spread users across servers to provide enough resources.</li>
+              </ul>
+            </li>
+            <li class="fragment">Reliability
+              <ul>
+                <li>You shouldn't lose work if server hardware fails.</li>
+                <li>We shouldn't have downtime during releases.</li>
+                <li>Users should be isolated from one another.</li>
+              </ul>
+            </li>
+            <li class="fragment">State
+              <ul>
+                <li>Notebooks</li>
+                <li>Kernel Processes</li>
+                <li>User Identity</li>
+              </ul>
+            </li>
+          </ul>
+        </section>
+        <section id="slides-stolen-from-carol">
+          <section id="carol-title">
+            <h3>Notebook Architecture</h3>
+          </section>
+          <section id="singleuser">
+            <img class="plain" src="images/carol-slides/slide-10.png">
+          </section>
+          <section id="hub-1">
+            <img class="plain" src="images/carol-slides/slide-13.png">
+          </section>
+          <section id="hub-2">
+            <img class=plain" src="images/carol-slides/slide-18.png">
+          </section>
+        </section>
+        <section id="identity">
+          <section id="identity-title" align="center">
+            <h2>User Identity</h2>
+          </section>
+          <section id="auth-problem" align="left">
+            <div>
+              <p>Default JupyterHub authenticates via Unix username/password.</p>
+            </div>
+            <ul>
+              <li class="fragment">Bad News: we don't want to give users Unix logins.</li>
+              <li class="fragment">Good News: we already have a login system!</li>
+              <li class="fragment">Better News: JupyterHub authentication is pluggable!</li>
+            </ul>
+          </section>
+          <section id="authentication" align="left">
+            <h3>Custom Authenticators!</h3>
+            <pre id="Authentication"><code class="python hjs">from tornado import gen
+
+from IPython.lib.security import passwd_check
+from traitlets import Dict
+from jupyterhub.auth import Authenticator
+
+class DictionaryAuthenticator(Authenticator):
+    users = Dict(config=True, help="Map from username -> password hash.")
+
+    @gen.coroutine
+    def authenticate(self, handler, data):
+        username, password = data['username'], data['password']
+        try:
+            password_hash = self.users[username]
+        except KeyError:
+            return None
+        if passwd_check(password_hash, password):
+            return username
+        else:
+            return None</code></pre>
+          </section>
+          <section id="oauthentication" align="left">
+            <h3>Quantopian OAuthenticator</h3>
+            <ul>
+              <p>Slightly more complex:</p>
+              <ul>
+                <li class="fragment">Redirect browser to <code>quantopian.com/authorize</code>.
+                </li>
+                <li class="fragment"><code>/authorize</code>
+                  <ul>
+                    <li class="fragment">Ensure user is logged into Quantopian.</li>
+                    <li class="fragment">Redirect back to <code>HUB/oauth_callback</code> with "OAuth Code".</li>
+                  </ul>
+                  <li class="fragment"><code>/oauth_callback</code>
+                    <ul>
+                      <li class="fragment">
+                        Send the code back to <code>quantopian.com/oauth/token</code>.
+                      </li>
+                      <li class="fragment">
+                        <code>/oauth/token</code> replies with an "Access Token".
+                      </li>
+                      <li class="fragment">
+                        Send token to <code>quantopian.com/api/get_resource_id/</code>.
+                      </li>
+                      <li class="fragment">
+                        <code>/api/get_resource_id/</code> replies with the user's ID.
+                      </li>
+                    </ul>
+                  </li>
+                </li>
+              </ul>
+            </ul>
+          </section>
+          <section id="oauthentication-reflections" align="left">
+            <h3>Reflections</h3>
+            <ul>
+              <li class="fragment">OAuth feels a little like overkill for this use-case, but...</li>
+              <li class="fragment">OAuth is standard and widely-available.</li>
+              <li class="fragment">Many good open-source libraries.</li>
+            </ul>
+          </section>
+        </section>
+        <section id="notebook-storage">
+          <section id="notebook-storage-title">
+            <h2>Notebook Storage</h2>
+          </section>
+          <section id="notebook-storage-bullets" align="left">
+            <p>Jupyter Notebook provides a filesystem interface for storing notebooks.</p>
+            <p class="fragment">Filesystem manipulation is abstracted behind by the <b>Contents API</b>.</p>
+          </section>
+          <section id="contents-api-verbs" align="left">
+            <h3>Contents API</h3>
+            <p>Notebook server implements the Contents REST API.</p>
+            <p>Translates HTTP verbs into filesystem operations.</p>
+            <table>
+              <thead>
+                <tr><th>Verb</th><th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td>GET</td><td>Load Notebook</td>
+                </tr>
+                <tr><td>POST</td><td>Save Notebook</td>
+                </tr>
+                <tr><td>DELETE</td><td>Delete Notebook</td>
+                </tr>
+              </tbody>
+            </table>
+            <p class="fragment">...a few extra endpoints for saving/restoring checkpoints.</p>
+          </section>
+          <section id="contents-model" align="left">
+            <h3>Contents API Model</h3>
+            <pre id="hub"><code class="python hljs">{
+    'content': {
+        'metadata': {},
+        'nbformat': 4,
+        'nbformat_minor': 0,
+        'cells': [
+            {'cell_type': 'markdown',
+             'metadata': {},
+             'source': 'Some **Markdown**'},
+        ],
+    },
+    'created': datetime(2015, 7, 25, 19, 50, 19, 19865),
+    'format': 'json',
+    'last_modified': datetime(2015, 7, 25, 19, 50, 19, 19865),
+    'mimetype': None,
+    'name': 'a.ipynb',
+    'path': 'foo/a.ipynb',
+    'type': 'notebook',
+    'writable': True,
+}</code></pre>
+          </section>
+          <section id="contents-manager" align="left">
+            <p>Contents HTTP handlers dispatch to a <code>ContentsManager</code>.</p>
+            <p class="fragment">Default <code>FileContentsManager</code> translates
+              requests into reads/writes to/from a local directory.</p>
+          </section>
+          <section id="contents-configurable" align="left">
+            <p>The <code>ContentsManager</code> class used by the notebook application is configurable!
+            </p>
+          </section>
+          <section id="contents-methods" align="left">
+            <h3>ContentsManager Interface</h3>
+            <table style="font-size: 25px">
+              <tbody valign="top">
+                <tr class="row-odd"><td><code class="xref py py-obj docutils literal"><span class="pre">ContentsManager.get</span></code>(path[,&nbsp;content,&nbsp;type,&nbsp;...])</td>
+                  <td>Get a model.</td>
+                </tr>
+                <tr class="row-even"><td><code class="xref py py-obj docutils literal"><span class="pre">ContentsManager.save</span></code>(model,&nbsp;path)</td>
+                  <td>Save a model to path.</td>
+                </tr>
+                <tr class="row-odd"><td><code class="xref py py-obj docutils literal"><span class="pre">ContentsManager.delete_file</span></code>(path)</td>
+                  <td>Delete the file at path.</td>
+                </tr>
+                <tr class="row-even"><td><code class="xref py py-obj docutils literal"><span class="pre">ContentsManager.rename_file</span></code>(old_path,&nbsp;new_path)</td>
+                  <td>Rename a file.</td>
+                </tr>
+                <tr class="row-odd"><td><code class="xref py py-obj docutils literal"><span class="pre">ContentsManager.file_exists</span></code>([path])</td>
+                  <td>Does a file exist at the given path?</td>
+                </tr>
+                <tr class="row-even"><td><code class="xref py py-obj docutils literal"><span class="pre">ContentsManager.dir_exists</span></code>(path)</td>
+                  <td>Does a directory exist at the given path?</td>
+                </tr>
+                <tr class="row-odd"><td><code class="xref py py-obj docutils literal"><span class="pre">ContentsManager.is_hidden</span></code>(path)</td>
+                  <td>Is path hidden?</td>
+                </tr>
+              </tbody>
+            </table>
+          </section>
+          <section id="pgcontents" align="left">
+            <h3>PGContents</h3>
+            <p><code>PGContents</code> is drop-in replacement for the default <code>FileContentsManager</code>.</p>
+            <p>
+              It stores notebooks in a <a href="www.postgresql.com">PostgreSQL</a> database instead of on the filesystem.
+            </p>
+          </section>
+          <section id="pgcontents-demo">
+            <h3>Mini-Demo</h3>
+          </section>
+          <section id="pgcontents-features" align="left">
+            <h3>Features</h3>
+            <div>
+              <ul>
+                <li class="fragment">Fully API-Compatible with Default ContentsManager
+                </li>
+                <li class="fragment">Separate Namespace per User
+                </li>
+                <li class="fragment">Multiple Checkpoints per Notebook
+                </li>
+                <li class="fragment">Configurable Maximum File Size
+                </li>
+                <li class="fragment">(Optional) Encryption at rest via the <code>cryptography</code> Package
+                </li>
+                <li class="fragment">Combine filesystem and postgres storage via <code>HybridContentsManager</code>.
+                </li>
+              </ul>
+            </div>
+          </section>
+          <section id="pgcontents-metrics" align="left">
+            <h3>Vanity Metrics</h3>
+            <ul>
+              <li class="fragment">65,000+ Users Have Created a Notebook</li>
+              <li class="fragment">220,000+ Total Notebooks</li>
+              <li class="fragment">310,000+ Total Checkpoints</li>
+              <li class="fragment">Over 450GB of Notebooks!</li>
+            </ul>
+          </section>
+          <section id="pgcontents-scaling" align="left">
+            <h3>Scaling Issues</h3>
+            <p class="fragment">Surprisingly few...Postgres is awesome!</p>
+            <p class="fragment">Most significant issue was running out of database connections.</p>
+            <p class="fragment">Fixed by adding transparent connection pooling with <a href="https://pgbouncer.github.io/">pgbouncer</a>.
+            </p>
+          </section>
+        </section>
+        <section id="multiple-hubs">
+          <section id="multiple-hubs-title">
+            <h2>Multiple Hubs</h2>
+          </section>
+          <section id="lies" align="left">
+            <h4>Observation:</h4>
+            <p class="fragment">Jupyter projects are series of increasingly-elaborate <b>lies</b>.</p>
+            <p class="fragment">They present the <b>illusion</b> of talking directly to a kernel, but add layers of indirection.</p>
+          </section>
+          <section id="ipython-and-console">
+            <h3>IPython</h3>
+            <img class="plain "id="ipython-svg" src="images/ipython.svg" width="100%">
+          </section>
+          <section>
+            <h3>Jupyter Console</h3>
+            <img class="plain "id="console-svg" src="images/console.svg" width="100%">
+          </section>
+          <section id="notebook">
+            <h3>Jupyter Notebook</h3>
+            <img class="plain" src="images/notebook-simple.svg" width=100%">
+          </section>
+          <section id="jupyterhub">
+            <h3>JupyterHub</h3>
+            <img class="plain" src="images/hub-simple.svg" width=100%">
+          </section>
+          <section id="when-in-doubt" align="left">
+            <h4>Observation:</h4>
+            <p class="fragment">We want the <b>illusion</b> of having a single JupyterHub, but with multiple real hubs.
+            </p>
+            <p class="fragment">We also want to <b>embed</b> the Hub in another web page.
+            </p>
+            <p class="fragment">We render the hub in an <a href="https://developer.mozilla.org/en-US/docs/Web/HTML/Element/iframe">iframe</a>
+              to kill two birds with one stone.
+            </p>
+          </section>
+          <section id="multi-hub">
+            <h3>Multi-Hub</h3>
+            <img class="plain" src="images/multi-hub.svg" width=100%">
+          </section>
+        </section>
+        <section id="discovery-found">
+          <h3>Hub Discovery</h3>
+          <div style="background-color: white; border-color: white">
+            <img class="plain" src="images/discovery-found.svg">
+          </div>
+        </section>
+        <section id="implementation notes" align="left">
+          <section data-transition="none" id="routing-simple">
+            <h3>Implementation Notes</h3>
+            Discovery routing logic is very simple. We just choose the hub with the least users.
+          </section>
+          <section data-transition="none" id="hub-override">
+            <p>We subclass the base <code>JupyterHub</code> class to add
+              additional logic for registering/heartbeating with discovery:
+            </p>
+            <pre id="hub"><code class="python hljs">class QuantopianJupyterHub(JupyterHub):
+
+    @gen.coroutine
+    def initialize(self, *args, **kwargs):
+        yield super().initialize(*args, **kwargs)
+
+        yield self.do_discovery_start()
+
+        # Heartbeat immediately, then register a callback to poll.
+        yield self.do_discovery_heartbeat()
+        PeriodicCallback(
+            self.do_discovery_heartbeat,
+            1e3 * self.discovery_heartbeat_interval,
+        ).start()</code></pre>
+          </section>
+          <section data-transition="none" id="more-hub-override">
+            <pre id="hub"><code class="python hljs">@gen.coroutine
+def do_discovery_heartbeat(self):
+    try:
+        yield self._make_discovery_request('heartbeat')
+        self.consecutive_failed_heartbeats = 0
+    except HTTPError as e:
+        self.consecutive_failed_heartbeats += 1
+        self.log.exception(
+            "Heartbeat %d failed",
+            self.consecutive_failed_heartbeats
+        )
+        if self.consecutive_failed_heartbeats >= \
+           self.consecutive_failed_heartbeats_before_shutdown:
+            self.log.error("Too many failed heartbeats. Shutting Down.")
+            self.trigger_graceful_shutdown()
+        raise</code></pre>
+          </section>
+        </section>
+        <section id="notebook-sharing" align="left">
+          <section id="sharing-intro"n>
+            <h3>Sharing Notebooks</h3>
+            <p class="fragment">Quantopian is a <b>community</b> of authors and researchers.</p>
+            <p class="fragment">Users need to be able to <b>share</b> and <b>discuss</b> their findings.</p>
+            <p class="fragment">Notebooks are an <b>ideal</b> format for sharing exploratory research.</p>
+          </section>
+          <section id="sharing-impl">
+            <h3>Sharing/Cloning Extensions</h3>
+            <div class="fragment">
+              <p>Two Parts:</p>
+              <ul>
+                <li class="fragment">An <b>nbextension</b> (UI/Javascript).</li>
+                <li class="fragment">A <b>serverextension</b> (Backend/Python).</li>
+              </ul>
+            </div>
+          </section>
+          <section id="nbextension">
+            <h3>NBExtension</h3>
+            <ul>
+              <li>
+                Adds a <b>Share</b> button to each cell.
+              </li>
+              <li>
+                Share button marks the cell as a "showcase cell" in notebook
+                metadata, then sends a POST with notebook content to the
+                server.
+              </li>
+            </ul>
+          </section>
+          <section id="server-extension">
+            <h3>Server Extension</h3>
+            <ul>
+              <li>Adds a request handler to the notebook server.</li>
+              <li>Request handler receives POST from nbextension, nbconverts to
+                HTML, and uploads HTML + .ipynb to S3.
+              </li>
+            </ul>
+          </section>
+          <section id="sharing-notes">
+            <h3>Sharing Notes</h3>
+            <p class="fragment">NBExtension + Server Extension combo makes it relatively easy to
+              add arbitrarily powerful functionality to the notebook.
+            </p>
+            <p class="fragment">Server-side APIs are generally more robust and stable.
+            </p>
+            <p class="fragment">Part of the motivation behind <b>JupyterLab</b> is
+              adding more well-defined APIS for frontend extensions.
+            </p>
+          </section>
+        </section>
+        <section id="conclusions" align="left">
+          <section id="conclusions-1">
+            <h3>Conclusions</h3>
+            <p class="fragment">Jupyter Applications are amazingly extensible and customizable.</p>
+            <div class="fragment">
+              <p>Extensions I didn't have time to talk about:</p>
+              <ul>
+                <li>Memory Monitor Extension</li>
+                <li>Interactive DataFrame Widget</li>
+                <li>Custom Completions</li>
+                <li>Custom Kernel Restarter</li>
+                <li>Custom Notebook Server Spawner</li>
+                <li>...</li>
+              </ul>
+            </div>
+          </section>
+          <section id="conclusions-2">
+            <h3>Conclusions</h3>
+            <p class="fragment">State is the enemy of robustness and scalability.</p>
+            <p class="fragment">Lots of problems become way easier if we don't
+              have to worry about state.
+            </p>
+          </section>
+          <section id="conclusions-3">
+            <h3>Conclusions</h3>
+            <p><del>Jupyter is built on a throne of lies.</del></p>
+            <p>Appropriate use of indirection allows us to compose complex
+              applications from simple parts.
+            </p>
+          </section>
+        </section>
+        <section id="thanks" align="left">
+          <h3>Special Thanks:</h4>
+          <ul>
+            <li>Brian Granger</li>
+            <li>Carol Willing</li>
+            <li>Kyle Kelley</li>
+            <li>Min Ragan-Kelley</li>
+            <li>The IPython/Jupyter Team</li>
+            <li>David Michalowicz</li>
+            <li>Karen Rubin</li>
+            <li>Tim Shawver</li>
+            <li>The Quantopian Team</li>
+          </ul>
+        </section>
+        <section id="finale-page" align="left">
+          <h3>Questions?</h3>
+          <div style="margin-left:5%">
+            <div>Slides: <a href="https://github.com/ssanderson/jupytercon-2017">https://github.com/ssanderson/jupytercon-2017</a></div>
+            <div>Github: <a href="https://github.com/ssanderson">ssanderson</a></div>
+            <div>Twitter: <a href="http://twitter.com/scottbsanderson">@scottbsanderson</a></div>
+            <div>Work: <a href="https://www.quantopian.com">Quantopian</a></div>
+          </div>
+        </section>
+      </div>
+    </div>
+    <script src="lib/js/head.min.js"></script>
+    <script src="js/reveal.js"></script>
+
+    <script>
+     // More info https://github.com/hakimel/reveal.js#configuration
+     Reveal.initialize({
+         history: true,
+
+         // More info https://github.com/hakimel/reveal.js#dependencies
+         dependencies: [
+             { src: 'plugin/markdown/marked.js' },
+             { src: 'plugin/markdown/markdown.js' },
+             { src: 'plugin/notes/notes.js', async: true },
+             { src: 'plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } }
+         ]
+     });
+    </script>
+  </body>
+</html>

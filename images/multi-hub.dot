@@ -1,0 +1,69 @@
+digraph MyGraph {
+        rankdir=LR
+        margin=0
+        border=0
+        edge [arrowsize=0.5, dir=both]
+
+        {
+                node [shape=diamond, style=rounded, height=1]
+                "Proxy 1"
+                "Proxy 2"
+                "Quantopian"
+        }
+
+        {
+                node [shape=ellipse]
+                "User A"
+                "User B"
+                "User C"
+                "User D"
+        }
+
+
+        {
+                node [shape=box]
+                "Browser A"
+                "Browser B"
+                "Browser C"
+                "Browser D"
+        }
+
+        {
+                node [shape=box]
+                "Server A"
+                "Server B"
+                "Server C"
+                "Server D"
+        }
+
+        {
+                node [shape=tripleoctagon]
+                "Kernel A"
+                "Kernel B"
+                "Kernel C"
+                "Kernel D"
+        }
+
+        subgraph cluster_1 {
+                "Proxy 1"
+                "Server A"
+                "Kernel A"
+                "Server B"
+                "Kernel B"
+                label = "Hub 1"
+        }
+
+        subgraph cluster_2 {
+                "Proxy 2"
+                "Server C"
+                "Kernel C"
+                "Server D"
+                "Kernel D"
+                label = "Hub 2"
+        }
+
+        "User A" -> "Browser A" -> "Quantopian" -> "Proxy 1" -> "Server A" -> "Kernel A"
+        "User B" -> "Browser B" -> "Quantopian" -> "Proxy 1" -> "Server B" -> "Kernel B"
+        "User C" -> "Browser C" -> "Quantopian" -> "Proxy 2" -> "Server C" -> "Kernel C"
+        "User D" -> "Browser D" -> "Quantopian" -> "Proxy 2" -> "Server D" -> "Kernel D"
+}

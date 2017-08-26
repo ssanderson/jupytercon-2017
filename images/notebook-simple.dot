@@ -1,0 +1,15 @@
+digraph MyGraph {
+        rankdir=LR
+        margin=0
+        border=0
+
+        edge [arrowsize=0.5, dir=both]
+
+        "User" [shape=ellipse]
+        "Browser" [shape=box]
+        "Server" [shape=box]
+        "Kernel" [shape=tripleoctagon]
+
+        "User" -> "Browser" -> "Server" -> "Kernel"
+
+}

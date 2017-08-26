@@ -1,0 +1,34 @@
+strict digraph MyGraph {
+        rankdir=LR
+        margin=0
+        nodesep=0.5
+        node [shape=box]
+        edge [dir=both, arrowsize=0.5]
+        splines=line
+
+        "User 1" -> {"Notebook A", "Notebook B"} -> Proxy -> "Server 1" -> {"Kernel A", "Kernel B"}
+        "User 2" -> {"Notebook C", "Notebook D"} -> Proxy -> "Server 2" -> {"Kernel C", "Kernel D"}
+
+        {
+                rank=same
+                edge [style=invis]
+                "User 1" -> "User 2"
+        }
+
+        {
+                rank=same
+                edge [style=invis]
+                "Notebook A" -> "Notebook B" -> "Notebook C" -> "Notebook D"
+        }
+
+        {
+                rank=same
+                "Proxy" -> "Hub"
+        }
+
+        // {
+        //         edge [style=dotted, dir=back]
+        //         Hub -> "Server 1" [constraint=false, weight=0]
+        //         Hub -> "Server 2" [constraint=false, weight=0]
+        // }
+}

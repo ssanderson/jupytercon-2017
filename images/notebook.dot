@@ -1,0 +1,14 @@
+digraph MyGraph {
+        rankdir=LR
+        margin=0
+        border=0
+        nodesep=0.5
+        node [shape=box]
+        edge [dir=both, arrowsize=0.5]
+        "User" -> "Notebook A"
+        "User" -> "Notebook B" [style=dotted]
+        "Notebook A" -> "Server"
+        "Notebook B" -> "Server" [style=dotted]
+        "Server" -> "Kernel A"
+        "Server" -> "Kernel B" [style=dotted]
+}

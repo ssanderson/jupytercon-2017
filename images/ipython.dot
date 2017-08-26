@@ -1,0 +1,11 @@
+digraph MyGraph {
+        rankdir=LR
+        margin=0
+        border=0
+        nodesep=0.5
+        edge [arrowsize=0.5, dir=both]
+
+        "User" [shape=ellipse]
+        "Kernel" [shape=tripleoctagon]
+        "User" -> "Kernel"
+}
